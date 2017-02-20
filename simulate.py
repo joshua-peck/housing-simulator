@@ -102,11 +102,11 @@ for n in range(args.count): # simulation number n
     sim_results.append(annualized_return)
 
 yields = pandas.Series(sim_results)
-print yields
-print yields.mean()
-print yields.max()
-print yields.min()
-print yields.median()
-print yields.mad()
+print "The complete list of yields for each run: %s\n" % yields
+print """Summary Statistics:
+Mean: %0.04f\tMedian: %0.04f
+Max: %0.04f\tMin: %0.04f
+MAD: %0.04f\tKurtosis: %0.04f
+""" % (yields.mean(), yields.median(), yields.max(), yields.min(), yields.mad(), yields.kurt())
 yields.hist()
 pyplot.show()
