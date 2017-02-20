@@ -5,12 +5,9 @@ import pandas
 from random import random
 from random import uniform
 import argparse
-import getopt
-import sys
 from matplotlib import pyplot
+from math import sqrt
 import json
-
-PROMPT = '>> '
 
 parser = \
     argparse.ArgumentParser(description='Simulate performance of investment'
@@ -39,74 +36,115 @@ parser.add_argument(
     default=5,
     help='number of simulations to run',
     )
-parser.add_argument(
-    '--value',
-    metavar='V',
-    type=int,
-    nargs='?',
-    default=150000,
-    help='initial value of the property',
-    )
 args = parser.parse_args()
+
+
+def get_historical_stats(df):
+    stats = {
+        'num_obs': float(len(df.index)),
+        'num_gain': df.DELTA[df.DELTA > 0].count(),
+        'num_loss': df.DELTA[df.DELTA < 0].count(),
+        'p_gain': None,
+        'p_loss': None,
+        }
+    stats['p_gain'] = stats['num_gain'] / stats['num_obs']
+    stats['p_loss'] = stats['num_loss'] / stats['num_obs']
+    stats['mean_gain_size'] = df.DELTA[df.DELTA > 0].sum() \
+        / stats['num_gain']
+    stats['mean_loss_size'] = df.DELTA[df.DELTA < 0].sum() \
+        / stats['num_loss']
+    return stats
+
+
+def simulate_month(stats):
+    outcome = 'DOWN'
+    value = 0.0
+    if random() < stats['p_gain']:
+        outcome = 'UP'
+    if 'DOWN' == outcome:
+        value = uniform(stats['mean_loss_size'], 0)
+    else:
+        value = uniform(0, stats['mean_gain_size'])
+    return (m, outcome, value)
+
+
+def plot_random_walk(rw, n):
+    random_walk = pandas.Series(rw)
+    pyplot.title('Random Walk (n=%d, %d months, simulation #%d)'
+                 % (args.count, args.years * 12, n + 1))
+    pyplot.ylabel('Growth (decimal)')
+    pyplot.xlabel('Month')
+    lines = pyplot.plot(random_walk * 100.0)
+    pyplot.grid(True)
+    pyplot.setp(lines, color='b', alpha=0.75, linewidth=3.0)
+    pyplot.savefig('figures/randomwalk-n%d-m%d-%d.png' % (args.count,
+                   args.years * 12, n + 1))
+    pyplot.close()
+
+
+def yields_summary_stats(yields):
+    return """Summary Statistics:
+    Mean: %0.04f\tMedian: %0.04f
+    Max: %0.04f\tMin: %0.04f
+    MAD: %0.04f\tKurtosis: %0.04f
+    """ \
+        % (
+        yields.mean(),
+        yields.median(),
+        yields.max(),
+        yields.min(),
+        yields.mad(),
+        yields.kurt(),
+        )
+
+
+def plot_yields(yields):
+    ax = (yields * 100.0).hist(
+        bins=int(sqrt(args.count)),
+        color='g',
+        alpha=1,
+        linewidth=2,
+        ylabelsize=16,
+        xlabelsize=16,
+        histtype='bar',
+        )
+    pyplot.title('Housing Average Returns (n=%d @ %d months)'
+                 % (args.count, args.years * 12))
+    pyplot.ylabel('# of Occurences')
+    pyplot.xlabel('Return in %')
+    fig = ax.get_figure()
+    fig.savefig('figures/hist-n%d-m%d.png' % (args.count, args.years
+                * 12))
+
 
 print "Reading historical data from '%s' and calculating metrics" \
     % args.file
-histdata = pandas.read_csv(args.file)
-histdata['DELTA'] = histdata.VALUE.astype(float) / 100.0
+hist_data = pandas.read_csv(args.file)
+hist_data['DELTA'] = hist_data.VALUE.astype(float) / 100.0
 
-# XXX convert to module or object
-
-histdata_stats = {
-    'num_obs': float(len(histdata.index)),
-    'num_gain': histdata.DELTA[histdata.DELTA > 0].count(),
-    'num_loss': histdata.DELTA[histdata.DELTA < 0].count(),
-    'p_gain': None,
-    'p_loss': None,
-    }
-
-histdata_stats['p_gain'] = histdata_stats['num_gain'] \
-    / histdata_stats['num_obs']
-histdata_stats['p_loss'] = histdata_stats['num_loss'] \
-    / histdata_stats['num_obs']
-histdata_stats['mean_gain_size'] = histdata.DELTA[histdata.DELTA
-        > 0].sum() / histdata_stats['num_gain']
-histdata_stats['mean_loss_size'] = histdata.DELTA[histdata.DELTA
-        < 0].sum() / histdata_stats['num_loss']
-
-print 'Running simulations with the following options: '
-print json.dumps(histdata_stats, sort_keys=True, indent=4,
-                 separators=(',', ': '))
-print "Running %d simulations of %d months" % (args.count, args.years * 12)
+hist_stats = get_historical_stats(hist_data)
+print 'Running simulations with the following parameters (derived from the datafile): '
+print json.dumps(hist_stats, sort_keys=True, indent=4, separators=(',',
+                 ': '))
+print 'Running %d simulations of %d months each' % (args.count,
+        args.years * 12)
 sim_results = list()
-for n in range(args.count): # simulation number n
+for n in range(args.count):  # simulation number n
     month_sim = pandas.DataFrame(columns=('MONTH', 'OUTCOME', 'VALUE'))
     random_walk = list()
-    for m in range(args.years * 12): # months to simulate
+    for m in range(args.years * 12):  # months to simulate
         sim = pandas.DataFrame()
-        outcome = "DOWN"
-        value = 0.0
-        if (random() < histdata_stats['p_gain']):
-            outcome = "UP"
-        if ('DOWN' == outcome):
-            value = uniform(histdata_stats['mean_loss_size'], 0)
-        else:
-            value = uniform(0, histdata_stats['mean_gain_size'])
+        (m, outcome, value) = simulate_month(hist_stats)
         month_sim.loc[m] = (m, outcome, value)
-        if (m > 0):
-            random_walk.append(random_walk[m-1] + value)
+        if m > 0:
+            random_walk.append(random_walk[m - 1] + value)
         else:
             random_walk.append(value)
-    # pyplot.plot(random_walk)
-    # pyplot.show()
     annualized_return = month_sim.VALUE.sum() / args.years
     sim_results.append(annualized_return)
+    plot_random_walk(random_walk, n)
 
 yields = pandas.Series(sim_results)
-print "The complete list of yields for each run: %s\n" % yields
-print """Summary Statistics:
-Mean: %0.04f\tMedian: %0.04f
-Max: %0.04f\tMin: %0.04f
-MAD: %0.04f\tKurtosis: %0.04f
-""" % (yields.mean(), yields.median(), yields.max(), yields.min(), yields.mad(), yields.kurt())
-yields.hist()
-pyplot.show()
+plot_yields(yields)
+print 'The complete list of yields for each run:\n', yields
+print yields_summary_stats(yields)
