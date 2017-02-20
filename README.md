@@ -25,9 +25,9 @@ S&P/Case-Shiller Home Price Indices (Percent Change)
 https://fred.stlouisfed.org/series/SPCS10RSA/downloaddata
 
 # NOTES:
-If you download the 'SPCS10RSA.csv' datafile again, make sure to set the first
-row value for VALUE to 0.0, otherwise it will interpret the entire column in the
-.csv as str()
+If you download the `SPCS10RSA.csv` datafile again, make sure to set the first
+row value for VALUE to `0.0`, otherwise it will interpret the entire column in the
+.csv as `str()`
 
 # AUTHOR
 Josh Peck - jmp@joshpeck.org
