@@ -19,7 +19,7 @@ but rather that they will be __behaviorally__ similar to past markets.
           --count [C]  number of simulations to run
 
 # DATA
-All data provided by the St. Louis Federal Reserve.
+All data provided by the St. Louis Federal Reserve (FRED).
 
 S&P/Case-Shiller Home Price Indices (Percent Change)
 https://fred.stlouisfed.org/series/SPCS10RSA/downloaddata
