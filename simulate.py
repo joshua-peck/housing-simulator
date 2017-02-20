@@ -7,6 +7,7 @@ from random import uniform
 import argparse
 import getopt
 import sys
+from matplotlib import pyplot
 import json
 
 PROMPT = '>> '
@@ -76,8 +77,10 @@ print 'Running simulations with the following options: '
 print json.dumps(histdata_stats, sort_keys=True, indent=4,
                  separators=(',', ': '))
 print "Running %d simulations of %d months" % (args.count, args.years * 12)
+sim_results = list()
 for n in range(args.count): # simulation number n
     month_sim = pandas.DataFrame(columns=('MONTH', 'OUTCOME', 'VALUE'))
+    random_walk = list()
     for m in range(args.years * 12): # months to simulate
         sim = pandas.DataFrame()
         outcome = "DOWN"
@@ -89,4 +92,21 @@ for n in range(args.count): # simulation number n
         else:
             value = uniform(0, histdata_stats['mean_gain_size'])
         month_sim.loc[m] = (m, outcome, value)
-    print month_sim.VALUE.sum() / args.years
+        if (m > 0):
+            random_walk.append(random_walk[m-1] + value)
+        else:
+            random_walk.append(value)
+    # pyplot.plot(random_walk)
+    # pyplot.show()
+    annualized_return = month_sim.VALUE.sum() / args.years
+    sim_results.append(annualized_return)
+
+yields = pandas.Series(sim_results)
+print yields
+print yields.mean()
+print yields.max()
+print yields.min()
+print yields.median()
+print yields.mad()
+yields.hist()
+pyplot.show()
