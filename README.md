@@ -1,11 +1,11 @@
 # OVERVIEW
 
 This simulation and model is devised as an attempt to discover actual returns an
-investor should expect from real estate, assuming that future markets will
+investor should expect from residential real estate, assuming that future markets will
 behave similarly to past markets.
 
-I'm don't claim that future markets will _perform_ similarly to past markets,
-but rather that they will be behaviorally similar to past markets.
+I don't assume that future markets will __perform__ similarly to past markets,
+but rather that they will be __behaviorally__ similar to past markets.
 
 # USAGE
         usage: simulate.py [-h] [--years [Y]] [--file [F]] [--count [C]]
@@ -30,5 +30,4 @@ row value for VALUE to 0.0, otherwise it will interpret the entire column in the
 .csv as str()
 
 # AUTHOR
-Josh Peck
-jmp@joshpeck.org
+Josh Peck - jmp@joshpeck.org
