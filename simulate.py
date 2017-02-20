@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import pandas
+import argparse
+import json
 from random import random
 from random import uniform
-import argparse
 from matplotlib import pyplot
 from math import sqrt
-import json
 
 parser = \
     argparse.ArgumentParser(description='Simulate performance of investment'
@@ -41,7 +41,7 @@ args = parser.parse_args()
 
 def get_historical_params(df):
     stats = {
-        'num_obs': float(len(df.index)),
+        'num_obs': float(df.DELTA.count()),
         'num_gain': df.DELTA[df.DELTA > 0].count(),
         'num_loss': df.DELTA[df.DELTA < 0].count(),
         'p_gain': None,
@@ -65,7 +65,7 @@ def simulate_month(stats):
         value = uniform(stats['mean_loss_size'], 0)
     else:
         value = uniform(0, stats['mean_gain_size'])
-    return (m, outcome, value)
+    return (outcome, value)
 
 
 def plot_random_walk(rw, n):
@@ -108,13 +108,14 @@ def plot_yields(yields):
         xlabelsize=16,
         histtype='bar',
         )
-    pyplot.title('Housing Annual Returns (n=%d @ %d months)'
+    pyplot.title('Housing Annual Returns (n=%d, %d months)'
                  % (args.count, args.years * 12))
     pyplot.ylabel('# of Occurences')
     pyplot.xlabel('Return in %')
     fig = ax.get_figure()
     fig.savefig('figures/hist-n%d-m%d.png' % (args.count, args.years
                 * 12))
+    pyplot.close()
 
 
 if __name__ == '__main__':
@@ -122,31 +123,28 @@ if __name__ == '__main__':
         % args.file
     hist_data = pandas.read_csv(args.file)
     hist_data['DELTA'] = hist_data.VALUE.astype(float) / 100.0
-
     hist_params = get_historical_params(hist_data)
     print '*** Running simulations with the following parameters (derived from the datafile): '
     print json.dumps(hist_params, sort_keys=True, indent=4,
                      separators=(',', ': '))
     print '*** Running %d simulations of %d months each' % (args.count,
             args.years * 12)
-    sim_results = list()
+    yields = pandas.Series()
     for n in range(args.count):  # simulation number n
         month_sim = pandas.DataFrame(columns=('MONTH', 'OUTCOME',
                 'VALUE'))
         random_walk = list()
         for m in range(args.years * 12):  # months to simulate
             sim = pandas.DataFrame()
-            (m, outcome, value) = simulate_month(hist_params)
+            (outcome, value) = simulate_month(hist_params)
             month_sim.loc[m] = (m, outcome, value)
             if m > 0:
                 random_walk.append(random_walk[m - 1] + value)
             else:
                 random_walk.append(value)
         annualized_return = month_sim.VALUE.sum() / args.years
-        sim_results.append(annualized_return)
+        yields = yields.set_value(n, annualized_return)
         plot_random_walk(random_walk, n)
-
-    yields = pandas.Series(sim_results)
     plot_yields(yields)
     print 'The complete list of yields for each run:\n', yields
     print yields_summary_stats(yields)
