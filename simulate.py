@@ -39,7 +39,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 
-def get_historical_stats(df):
+def get_historical_params(df):
     stats = {
         'num_obs': float(len(df.index)),
         'num_gain': df.DELTA[df.DELTA > 0].count(),
@@ -84,9 +84,9 @@ def plot_random_walk(rw, n):
 
 def yields_summary_stats(yields):
     return """Summary Statistics:
-    Mean: %0.04f\tMedian: %0.04f
-    Max: %0.04f\tMin: %0.04f
-    MAD: %0.04f\tKurtosis: %0.04f
+    Mean: %0.04f\tMedian:   %0.04f
+    Max:  %0.04f\tMin:      %0.04f
+    MAD:  %0.04f\tKurtosis: %0.04f
     """ \
         % (
         yields.mean(),
@@ -108,7 +108,7 @@ def plot_yields(yields):
         xlabelsize=16,
         histtype='bar',
         )
-    pyplot.title('Housing Average Returns (n=%d @ %d months)'
+    pyplot.title('Housing Annual Returns (n=%d @ %d months)'
                  % (args.count, args.years * 12))
     pyplot.ylabel('# of Occurences')
     pyplot.xlabel('Return in %')
@@ -117,34 +117,36 @@ def plot_yields(yields):
                 * 12))
 
 
-print "Reading historical data from '%s' and calculating metrics" \
-    % args.file
-hist_data = pandas.read_csv(args.file)
-hist_data['DELTA'] = hist_data.VALUE.astype(float) / 100.0
+if __name__ == '__main__':
+    print "*** Reading historical data from '%s' and calculating metrics" \
+        % args.file
+    hist_data = pandas.read_csv(args.file)
+    hist_data['DELTA'] = hist_data.VALUE.astype(float) / 100.0
 
-hist_stats = get_historical_stats(hist_data)
-print 'Running simulations with the following parameters (derived from the datafile): '
-print json.dumps(hist_stats, sort_keys=True, indent=4, separators=(',',
-                 ': '))
-print 'Running %d simulations of %d months each' % (args.count,
-        args.years * 12)
-sim_results = list()
-for n in range(args.count):  # simulation number n
-    month_sim = pandas.DataFrame(columns=('MONTH', 'OUTCOME', 'VALUE'))
-    random_walk = list()
-    for m in range(args.years * 12):  # months to simulate
-        sim = pandas.DataFrame()
-        (m, outcome, value) = simulate_month(hist_stats)
-        month_sim.loc[m] = (m, outcome, value)
-        if m > 0:
-            random_walk.append(random_walk[m - 1] + value)
-        else:
-            random_walk.append(value)
-    annualized_return = month_sim.VALUE.sum() / args.years
-    sim_results.append(annualized_return)
-    plot_random_walk(random_walk, n)
+    hist_params = get_historical_params(hist_data)
+    print '*** Running simulations with the following parameters (derived from the datafile): '
+    print json.dumps(hist_params, sort_keys=True, indent=4,
+                     separators=(',', ': '))
+    print '*** Running %d simulations of %d months each' % (args.count,
+            args.years * 12)
+    sim_results = list()
+    for n in range(args.count):  # simulation number n
+        month_sim = pandas.DataFrame(columns=('MONTH', 'OUTCOME',
+                'VALUE'))
+        random_walk = list()
+        for m in range(args.years * 12):  # months to simulate
+            sim = pandas.DataFrame()
+            (m, outcome, value) = simulate_month(hist_params)
+            month_sim.loc[m] = (m, outcome, value)
+            if m > 0:
+                random_walk.append(random_walk[m - 1] + value)
+            else:
+                random_walk.append(value)
+        annualized_return = month_sim.VALUE.sum() / args.years
+        sim_results.append(annualized_return)
+        plot_random_walk(random_walk, n)
 
-yields = pandas.Series(sim_results)
-plot_yields(yields)
-print 'The complete list of yields for each run:\n', yields
-print yields_summary_stats(yields)
+    yields = pandas.Series(sim_results)
+    plot_yields(yields)
+    print 'The complete list of yields for each run:\n', yields
+    print yields_summary_stats(yields)
